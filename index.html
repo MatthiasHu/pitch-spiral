@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width">
+
+    <title>createMediaStreamSource example</title>
+
+    <link rel="stylesheet" href="">
+  </head>
+
+  <body>
+    <canvas id="spiralCanvas" width=512 height=512></canvas>
+    <h1>createMediaStreamSource example</h1>
+    <div id="textOutput">hoi</div>
+    <canvas id="barsCanvas" width=1024></canvas>
+  </body>
+<script>
+"use strict";
+
+console.log("start");
+
+const pitchRange = 3;
+const fftSize = 1024*32;
+
+const textOutput = document.getElementById("textOutput");
+const barsCanvas = document.getElementById("barsCanvas");
+const spiralCanvas = document.getElementById("spiralCanvas");
+        
+const barsCtx = barsCanvas.getContext('2d');
+const spiralCtx = spiralCanvas.getContext('2d');
+
+barsCtx.fillStyle = 'rgb(0, 0, 0)';
+barsCtx.fillRect(0, 0, barsCanvas.width, barsCanvas.height);
+spiralCtx.fillStyle = 'rgb(0, 0, 0)';
+spiralCtx.fillRect(0, 0, spiralCanvas.width, spiralCanvas.height);
+
+const zeroPitchFrequency = 440*Math.pow(2, 3/12);
+
+function frequencyToPitch(f) {
+  return Math.log(f/zeroPitchFrequency)/Math.log(2);
+}
+
+function pitchPosition(offsets, p) {
+  const alpha = p*2*Math.PI;
+  const r = (0.1*p + 0.5)*offsets.radius;
+  return { x: offsets.center.x + Math.sin(alpha)*r
+         , y: offsets.center.y - Math.cos(alpha)*r }
+}
+
+function drawingOffsets() {
+  const w = spiralCanvas.width;
+  const h = spiralCanvas.height;
+  return { center: { x: w/2
+                   , y: h/2 }
+         , radius: Math.min(w/2, h/2) }
+}
+
+function fillCircle(ctx, xy, r) {
+  ctx.beginPath();
+  ctx.arc(xy.x, xy.y, r, 0, 2*Math.PI);
+  ctx.fill();
+}
+
+
+if (navigator.mediaDevices) {
+  console.log('getUserMedia supported.');
+  navigator.mediaDevices.getUserMedia ({audio: true})
+  .then(function(stream) {
+
+    var audioCtx = new AudioContext();
+    var source = audioCtx.createMediaStreamSource(stream);
+    
+    const analyserNode = audioCtx.createAnalyser();
+    analyserNode.fftSize = fftSize;
+    const bufferLength = analyserNode.frequencyBinCount;
+    const dataArray = new Float32Array(bufferLength);
+
+    function indexToFrequency(i) {
+      return i / (bufferLength-1) * 22050;
+    }
+    
+    source.connect(analyserNode);
+    source.connect(audioCtx.destination);
+    
+    function draw() {
+      setTimeout(draw, 100);
+
+      analyserNode.getFloatFrequencyData(dataArray);
+
+      barsCtx.fillStyle = 'rgb(0, 0, 0)';
+      barsCtx.fillRect(0, 0, barsCanvas.width, barsCanvas.height);
+
+      // draw bars
+      const barWidth = (barsCanvas.width / bufferLength) * 5;
+      let posX = 0;
+      for (let i = 0; i < bufferLength/5; i++) {
+        const barHeight = (dataArray[i] + 140) * 2;
+        barsCtx.fillStyle = 'rgb(' + Math.floor(barHeight + 100) + ', 50, 50)';
+        barsCtx.fillRect(posX, barsCanvas.height - barHeight / 2, barWidth, barHeight / 2);
+        posX += barWidth;
+      }
+
+      var min = dataArray[0];
+      var maxIndex = 0;
+      var max = dataArray[maxIndex];
+      for (let i = 0; i < bufferLength; i++) {
+        if (dataArray[i] < min) {
+          min = dataArray[i];
+        }
+        if (dataArray[i] > max) {
+          maxIndex = i;
+          max = dataArray[maxIndex];
+        }
+      }
+
+      var maxFrequency = indexToFrequency(maxIndex);
+
+      textOutput.innerHTML =
+        "min: " + min.toFixed(1) + "<br>" +
+        "max: " + max.toFixed(1) + "<br>" +
+        "peak prequency: " + maxFrequency.toFixed(1) + "Hz";
+
+
+      // draw spiral
+      spiralCtx.fillStyle = 'rgb(0, 0, 0)';
+      spiralCtx.fillRect(0, 0, spiralCanvas.width, spiralCanvas.height);
+
+      const offsets = drawingOffsets();
+
+      spiralCtx.strokeStyle = "white";
+      spiralCtx.beginPath();
+      var p = -pitchRange;
+      var xy = pitchPosition(offsets, p);
+      spiralCtx.moveTo(xy.x, xy.y);
+      for (; p <= pitchRange; p+=1/60) {
+        var xy = pitchPosition(offsets, p);
+        spiralCtx.lineTo(xy.x, xy.y);
+      }
+      spiralCtx.stroke();
+
+      spiralCtx.fillStyle = "red";
+      for (let i = 0; i < bufferLength; i++) {
+        const p = frequencyToPitch(indexToFrequency(i));
+        if (-pitchRange <= p && p <= pitchRange) {
+          const r = Math.max(0, dataArray[i] + 60)*0.0005*offsets.radius;
+          fillCircle(spiralCtx, pitchPosition(offsets, p), r);
+        }
+      }
+
+      if (maxFrequency > 50) {
+        const p = frequencyToPitch(maxFrequency);
+        const xy = pitchPosition(offsets, p);
+        spiralCtx.fillStyle = "white";
+        fillCircle(spiralCtx, xy, offsets.radius*0.03);
+      }
+    }
+    draw();
+    
+  })
+  .catch(function(err) {
+      console.log('The following gUM error occured: ' + err);
+  });
+} else {
+  console.log('getUserMedia not supported on your browser!');
+}
+</script>
+</html>
