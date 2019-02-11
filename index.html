@@ -42,6 +42,9 @@ spiralCtx.fillRect(0, 0, spiralCanvas.width, spiralCanvas.height);
 
 const zeroPitchFrequency = 440*Math.pow(2, 3/12);
 
+const pitchLabels =
+  ["c", "", "d", "", "e", "f", "", "g", "", "a", "", "b"];
+
 function frequencyToPitch(f) {
   return Math.log(f/zeroPitchFrequency) / Math.log(2);
 }
@@ -173,18 +176,24 @@ if (navigator.mediaDevices) {
 
       const offsets = drawingOffsets();
 
-      spiralCtx.strokeStyle = "grey";
+      spiralCtx.font = offsets.radius*0.1 + "px DUMMY";
+      spiralCtx.textAlign = "center";
+      spiralCtx.textBaseline = "middle";
       const r0 = offsets.radius*(0.5-pitchRange*0.1-0.05);
       const r1 = offsets.radius*(0.5+pitchRange*0.1+0.05);
+      const r2 = offsets.radius*(0.5+pitchRange*0.1+0.10);
       for (let i = 0; i < 12; i++) {
         let alpha = 2*Math.PI * i / 12;
         let c = Math.cos(alpha);
         let s = Math.sin(alpha);
         let center = offsets.center;
+        spiralCtx.strokeStyle = "grey";
         spiralCtx.beginPath();
-        spiralCtx.moveTo(center.x + r0*c, center.y + r0*s);
-        spiralCtx.lineTo(center.x + r1*c, center.y + r1*s);
+        spiralCtx.moveTo(center.x + r0*s, center.y - r0*c);
+        spiralCtx.lineTo(center.x + r1*s, center.y - r1*c);
         spiralCtx.stroke();
+        spiralCtx.strokeStyle = "white";
+        spiralCtx.strokeText(pitchLabels[i], center.x + r2*s, center.y - r2*c);
       }
 
       const dp = 1/(12*20)
