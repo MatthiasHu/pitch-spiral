@@ -18,6 +18,13 @@
 <script>
 "use strict";
 
+// Everything below this dB value is considered noise.
+const noiseLevel = -50;
+
+// How many harmonics should be included in the ranking of dominant
+// frequencies?
+const harmonics = 10;
+
 const pitchRange = 3;
 const fftSize = 1024*16;
 
@@ -32,8 +39,6 @@ barsCtx.fillStyle = 'rgb(0, 0, 0)';
 barsCtx.fillRect(0, 0, barsCanvas.width, barsCanvas.height);
 spiralCtx.fillStyle = 'rgb(0, 0, 0)';
 spiralCtx.fillRect(0, 0, spiralCanvas.width, spiralCanvas.height);
-
-const noiseLevel = -50;
 
 const zeroPitchFrequency = 440*Math.pow(2, 3/12);
 
@@ -98,6 +103,16 @@ if (navigator.mediaDevices) {
     function frequencyToIndex(f) {
       return f / 22050 * bufferLength;
     }
+    function indexToPitch(i) {
+      return frequencyToPitch(indexToFrequency(i));
+    }
+    function pitchToIndex(p) {
+      return frequencyToIndex(pitchToFrequency(p));
+    }
+
+    const indices =
+      { low: Math.floor(pitchToIndex(-pitchRange))
+      , high: Math.ceil(pitchToIndex( pitchRange)) };
     
     source.connect(analyserNode);
     //source.connect(audioCtx.destination);
@@ -121,35 +136,35 @@ if (navigator.mediaDevices) {
         posX += barWidth;
       }
 
-      // find peak frequency
+      // find dominant frequency
 
-      var min = dataArray[0];
-      var maxIndex = 0;
-      var max = dataArray[maxIndex];
-      for (let i = 0; i < bufferLength; i++) {
-        if (dataArray[i] < min) {
-          min = dataArray[i];
-        }
-        if (dataArray[i] > max) {
-          maxIndex = i;
-          max = dataArray[maxIndex];
+      let countCandidates = 0;
+      let bestIndex = 0;
+      let bestScore = 0;
+      for (let i = indices.low; i < indices.high; i++) {
+        const left   = dataArray[i-1];
+        const middle = dataArray[i  ];
+        const right  = dataArray[i+1];
+        if (middle > noiseLevel && middle >= left && middle >= right) {
+          countCandidates += 1;
+          const ii = i + interpolateExtremum(left, middle, right);
+          let score = 0;
+          for (let j = 1; j <= harmonics && j*ii <= bufferLength-1; j++) {
+            const raw = dataArray[Math.round(j*ii)];
+            score += Math.max(0, raw - noiseLevel) * (1 - (j-1)/harmonics);
+          }
+          if (score > bestScore) {
+            bestScore = score;
+            bestIndex = ii;
+          }
         }
       }
-
-      var maxFrequency = 0;
-      if (maxIndex > 0 && maxIndex < bufferLength-1) {
-        var left   = dataArray[maxIndex-1];
-        var middle = dataArray[maxIndex  ];
-        var right  = dataArray[maxIndex+1];
-        var delta = interpolateExtremum(left, middle, right);
-        maxFrequency = indexToFrequency(maxIndex + delta);
-      }
+      const dominantFrequency = indexToFrequency(bestIndex);
 
       textOutput.innerHTML =
-        "min: " + min.toFixed(1) + "<br>" +
-        "max: " + max.toFixed(1) + "<br>" +
-        "peak prequency: " + maxFrequency.toFixed(2) + "Hz";
-
+        "dominant frequency: " + dominantFrequency.toFixed(2) + "Hz" +
+        "<br>" + "score: " + bestScore.toFixed(1) +
+        "<br>" + "candidates: " + countCandidates;
 
       // draw spiral
 
@@ -177,7 +192,7 @@ if (navigator.mediaDevices) {
       for (let p = -pitchRange; p <= pitchRange; p += dp) {
         const xy = pitchPosition(offsets, p + dp/2);
         linePath(spiralCtx, lastxy, xy);
-        const index = Math.round(frequencyToIndex(pitchToFrequency(p)));
+        const index = Math.round(pitchToIndex(p));
         const db = Math.max(0, dataArray[index] - noiseLevel);
         if (db > 0) {
           spiralCtx.lineWidth = 1 + db*0.002*offsets.radius;
@@ -192,8 +207,8 @@ if (navigator.mediaDevices) {
       }
       spiralCtx.lineWidth = 1;
 
-      if (maxFrequency > 50) {
-        const p = frequencyToPitch(maxFrequency);
+      if (dominantFrequency > 50) {
+        const p = frequencyToPitch(dominantFrequency);
         const r = 0.05*offsets.radius;
         const center = pitchPosition(offsets, p);
         const inner = pitchPosition(offsets, p, -r);
