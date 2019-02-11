@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
     <meta name="viewport" content="width=device-width">
 
-    <title>createMediaStreamSource example</title>
+    <title>pitch spiral</title>
 
     <link rel="stylesheet" href="">
   </head>
@@ -103,14 +103,17 @@ if (navigator.mediaDevices) {
       barsCtx.fillRect(0, 0, barsCanvas.width, barsCanvas.height);
 
       // draw bars
+
       const barWidth = (barsCanvas.width / bufferLength) * 5;
       let posX = 0;
       for (let i = 0; i < bufferLength/5; i++) {
-        const barHeight = (dataArray[i] + 140) * 2;
+        const barHeight = (dataArray[i] + 100) * 2;
         barsCtx.fillStyle = 'rgb(' + Math.floor(barHeight + 100) + ', 50, 50)';
         barsCtx.fillRect(posX, barsCanvas.height - barHeight / 2, barWidth, barHeight / 2);
         posX += barWidth;
       }
+
+      // find peak frequency
 
       var min = dataArray[0];
       var maxIndex = 0;
@@ -141,12 +144,27 @@ if (navigator.mediaDevices) {
 
 
       // draw spiral
+
       spiralCtx.fillStyle = 'rgb(0, 0, 0)';
       spiralCtx.fillRect(0, 0, spiralCanvas.width, spiralCanvas.height);
 
       const offsets = drawingOffsets();
 
-      spiralCtx.strokeStyle = "white";
+      spiralCtx.strokeStyle = "grey";
+      const r0 = offsets.radius*(0.5-pitchRange*0.1-0.05);
+      const r1 = offsets.radius*(0.5+pitchRange*0.1+0.05);
+      for (let i = 0; i < 12; i++) {
+        let alpha = 2*Math.PI * i / 12;
+        let c = Math.cos(alpha);
+        let s = Math.sin(alpha);
+        let center = offsets.center;
+        spiralCtx.beginPath();
+        spiralCtx.moveTo(center.x + r0*c, center.y + r0*s);
+        spiralCtx.lineTo(center.x + r1*c, center.y + r1*s);
+        spiralCtx.stroke();
+      }
+
+      spiralCtx.strokeStyle = "grey";
       spiralCtx.beginPath();
       var p = -pitchRange;
       var xy = pitchPosition(offsets, p);
@@ -169,11 +187,11 @@ if (navigator.mediaDevices) {
 
       if (maxFrequency > 50) {
         const p = frequencyToPitch(maxFrequency);
-        const r = 0.04*offsets.radius;
+        const r = 0.05*offsets.radius;
         const center = pitchPosition(offsets, p);
         const inner = pitchPosition(offsets, p, -r);
         const outer = pitchPosition(offsets, p, r);
-        spiralCtx.strokeStyle = "rgb(255, 255, 255)";
+        spiralCtx.strokeStyle = "white";
         circlePath(spiralCtx, center, r);
         spiralCtx.stroke();
         linePath(spiralCtx, inner, outer);
