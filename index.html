@@ -19,10 +19,8 @@
 <script>
 "use strict";
 
-console.log("start");
-
 const pitchRange = 3;
-const fftSize = 1024*32;
+const fftSize = 1024*16;
 
 const textOutput = document.getElementById("textOutput");
 const barsCanvas = document.getElementById("barsCanvas");
@@ -49,6 +47,12 @@ function pitchPosition(offsets, p) {
          , y: offsets.center.y - Math.cos(alpha)*r }
 }
 
+// Vertex of parabola interpolating the points
+// (-1, left), (0, middle) and (1, right).
+function interpolateExtremum(left, middle, right) {
+  return 0.5 * (left - right) / (left + right - 2*middle);
+}
+
 function drawingOffsets() {
   const w = spiralCanvas.width;
   const h = spiralCanvas.height;
@@ -66,7 +70,7 @@ function fillCircle(ctx, xy, r) {
 
 if (navigator.mediaDevices) {
   console.log('getUserMedia supported.');
-  navigator.mediaDevices.getUserMedia ({audio: true})
+  navigator.mediaDevices.getUserMedia({audio: true})
   .then(function(stream) {
 
     var audioCtx = new AudioContext();
@@ -74,15 +78,16 @@ if (navigator.mediaDevices) {
     
     const analyserNode = audioCtx.createAnalyser();
     analyserNode.fftSize = fftSize;
+    analyserNode.smoothingTimeConstant = 0.2;
     const bufferLength = analyserNode.frequencyBinCount;
     const dataArray = new Float32Array(bufferLength);
 
     function indexToFrequency(i) {
-      return i / (bufferLength-1) * 22050;
+      return i / bufferLength * 22050;
     }
     
     source.connect(analyserNode);
-    source.connect(audioCtx.destination);
+    //source.connect(audioCtx.destination);
     
     function draw() {
       setTimeout(draw, 100);
@@ -115,12 +120,19 @@ if (navigator.mediaDevices) {
         }
       }
 
-      var maxFrequency = indexToFrequency(maxIndex);
+      var maxFrequency = 0;
+      if (maxIndex > 0 && maxIndex < bufferLength-1) {
+        var left   = dataArray[maxIndex-1];
+        var middle = dataArray[maxIndex  ];
+        var right  = dataArray[maxIndex+1];
+        var delta = interpolateExtremum(left, middle, right);
+        maxFrequency = indexToFrequency(maxIndex + delta);
+      }
 
       textOutput.innerHTML =
         "min: " + min.toFixed(1) + "<br>" +
         "max: " + max.toFixed(1) + "<br>" +
-        "peak prequency: " + maxFrequency.toFixed(1) + "Hz";
+        "peak prequency: " + maxFrequency.toFixed(2) + "Hz";
 
 
       // draw spiral
