@@ -12,7 +12,6 @@
 
   <body>
     <canvas id="spiralCanvas" width=512 height=512></canvas>
-    <h1>createMediaStreamSource example</h1>
     <div id="textOutput">hoi</div>
     <canvas id="barsCanvas" width=1024></canvas>
   </body>
@@ -40,11 +39,13 @@ function frequencyToPitch(f) {
   return Math.log(f/zeroPitchFrequency)/Math.log(2);
 }
 
-function pitchPosition(offsets, p) {
+function pitchPosition(offsets, p, radial=0) {
   const alpha = p*2*Math.PI;
   const r = (0.1*p + 0.5)*offsets.radius;
-  return { x: offsets.center.x + Math.sin(alpha)*r
-         , y: offsets.center.y - Math.cos(alpha)*r }
+  const c = Math.cos(alpha);
+  const s = Math.sin(alpha);
+  return { x: offsets.center.x + s*(r+radial)
+         , y: offsets.center.y - c*(r+radial) }
 }
 
 // Vertex of parabola interpolating the points
@@ -61,10 +62,14 @@ function drawingOffsets() {
          , radius: Math.min(w/2, h/2) }
 }
 
-function fillCircle(ctx, xy, r) {
+function circlePath(ctx, xy, r) {
   ctx.beginPath();
   ctx.arc(xy.x, xy.y, r, 0, 2*Math.PI);
-  ctx.fill();
+}
+function linePath(ctx, xy0, xy1) {
+  ctx.beginPath();
+  ctx.moveTo(xy0.x, xy0.y);
+  ctx.lineTo(xy1.x, xy1.y);
 }
 
 
@@ -147,7 +152,7 @@ if (navigator.mediaDevices) {
       var xy = pitchPosition(offsets, p);
       spiralCtx.moveTo(xy.x, xy.y);
       for (; p <= pitchRange; p+=1/60) {
-        var xy = pitchPosition(offsets, p);
+        const xy = pitchPosition(offsets, p);
         spiralCtx.lineTo(xy.x, xy.y);
       }
       spiralCtx.stroke();
@@ -157,15 +162,22 @@ if (navigator.mediaDevices) {
         const p = frequencyToPitch(indexToFrequency(i));
         if (-pitchRange <= p && p <= pitchRange) {
           const r = Math.max(0, dataArray[i] + 60)*0.0005*offsets.radius;
-          fillCircle(spiralCtx, pitchPosition(offsets, p), r);
+          circlePath(spiralCtx, pitchPosition(offsets, p), r);
+          spiralCtx.fill();
         }
       }
 
       if (maxFrequency > 50) {
         const p = frequencyToPitch(maxFrequency);
-        const xy = pitchPosition(offsets, p);
-        spiralCtx.fillStyle = "white";
-        fillCircle(spiralCtx, xy, offsets.radius*0.03);
+        const r = 0.04*offsets.radius;
+        const center = pitchPosition(offsets, p);
+        const inner = pitchPosition(offsets, p, -r);
+        const outer = pitchPosition(offsets, p, r);
+        spiralCtx.strokeStyle = "rgb(255, 255, 255)";
+        circlePath(spiralCtx, center, r);
+        spiralCtx.stroke();
+        linePath(spiralCtx, inner, outer);
+        spiralCtx.stroke();
       }
     }
     draw();
