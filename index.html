@@ -13,7 +13,6 @@
   <body>
     <canvas id="spiralCanvas" width=512 height=512></canvas>
     <div id="textOutput">hoi</div>
-    <canvas id="barsCanvas" width=1024></canvas>
   </body>
 <script>
 "use strict";
@@ -29,14 +28,10 @@ const pitchRange = 3;
 const fftSize = 1024*16;
 
 const textOutput = document.getElementById("textOutput");
-const barsCanvas = document.getElementById("barsCanvas");
 const spiralCanvas = document.getElementById("spiralCanvas");
         
-const barsCtx = barsCanvas.getContext('2d');
 const spiralCtx = spiralCanvas.getContext('2d');
 
-barsCtx.fillStyle = 'rgb(0, 0, 0)';
-barsCtx.fillRect(0, 0, barsCanvas.width, barsCanvas.height);
 spiralCtx.fillStyle = 'rgb(0, 0, 0)';
 spiralCtx.fillRect(0, 0, spiralCanvas.width, spiralCanvas.height);
 
@@ -124,20 +119,6 @@ if (navigator.mediaDevices) {
       setTimeout(draw, 100);
 
       analyserNode.getFloatFrequencyData(dataArray);
-
-      barsCtx.fillStyle = 'rgb(0, 0, 0)';
-      barsCtx.fillRect(0, 0, barsCanvas.width, barsCanvas.height);
-
-      // draw bars
-
-      const barWidth = (barsCanvas.width / bufferLength) * 5;
-      let posX = 0;
-      for (let i = 0; i < bufferLength/5; i++) {
-        const barHeight = (dataArray[i] + 100) * 2;
-        barsCtx.fillStyle = 'rgb(' + Math.floor(barHeight + 100) + ', 50, 50)';
-        barsCtx.fillRect(posX, barsCanvas.height - barHeight / 2, barWidth, barHeight / 2);
-        posX += barWidth;
-      }
 
       // find dominant frequency
 
