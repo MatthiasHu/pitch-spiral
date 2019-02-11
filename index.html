@@ -33,10 +33,15 @@ barsCtx.fillRect(0, 0, barsCanvas.width, barsCanvas.height);
 spiralCtx.fillStyle = 'rgb(0, 0, 0)';
 spiralCtx.fillRect(0, 0, spiralCanvas.width, spiralCanvas.height);
 
+const noiseLevel = -50;
+
 const zeroPitchFrequency = 440*Math.pow(2, 3/12);
 
 function frequencyToPitch(f) {
-  return Math.log(f/zeroPitchFrequency)/Math.log(2);
+  return Math.log(f/zeroPitchFrequency) / Math.log(2);
+}
+function pitchToFrequency(p) {
+  return Math.pow(2, p) * zeroPitchFrequency;
 }
 
 function pitchPosition(offsets, p, radial=0) {
@@ -89,6 +94,9 @@ if (navigator.mediaDevices) {
 
     function indexToFrequency(i) {
       return i / bufferLength * 22050;
+    }
+    function frequencyToIndex(f) {
+      return f / 22050 * bufferLength;
     }
     
     source.connect(analyserNode);
@@ -164,26 +172,25 @@ if (navigator.mediaDevices) {
         spiralCtx.stroke();
       }
 
-      spiralCtx.strokeStyle = "grey";
-      spiralCtx.beginPath();
-      var p = -pitchRange;
-      var xy = pitchPosition(offsets, p);
-      spiralCtx.moveTo(xy.x, xy.y);
-      for (; p <= pitchRange; p+=1/60) {
-        const xy = pitchPosition(offsets, p);
-        spiralCtx.lineTo(xy.x, xy.y);
-      }
-      spiralCtx.stroke();
-
-      spiralCtx.fillStyle = "red";
-      for (let i = 0; i < bufferLength; i++) {
-        const p = frequencyToPitch(indexToFrequency(i));
-        if (-pitchRange <= p && p <= pitchRange) {
-          const r = Math.max(0, dataArray[i] + 60)*0.0005*offsets.radius;
-          circlePath(spiralCtx, pitchPosition(offsets, p), r);
-          spiralCtx.fill();
+      const dp = 1/(12*20)
+      let lastxy = pitchPosition(offsets, -pitchRange - dp/2);
+      for (let p = -pitchRange; p <= pitchRange; p += dp) {
+        const xy = pitchPosition(offsets, p + dp/2);
+        linePath(spiralCtx, lastxy, xy);
+        const index = Math.round(frequencyToIndex(pitchToFrequency(p)));
+        const db = Math.max(0, dataArray[index] - noiseLevel);
+        if (db > 0) {
+          spiralCtx.lineWidth = 1 + db*0.002*offsets.radius;
+          spiralCtx.strokeStyle = "red";
         }
+        else {
+          spiralCtx.lineWidth = 1;
+          spiralCtx.strokeStyle = "grey";
+        }
+        spiralCtx.stroke();
+        lastxy = xy;
       }
+      spiralCtx.lineWidth = 1;
 
       if (maxFrequency > 50) {
         const p = frequencyToPitch(maxFrequency);
@@ -193,7 +200,9 @@ if (navigator.mediaDevices) {
         const outer = pitchPosition(offsets, p, r);
         spiralCtx.strokeStyle = "white";
         circlePath(spiralCtx, center, r);
+        spiralCtx.lineWidth = 2;
         spiralCtx.stroke();
+        spiralCtx.lineWidth = 1;
         linePath(spiralCtx, inner, outer);
         spiralCtx.stroke();
       }
