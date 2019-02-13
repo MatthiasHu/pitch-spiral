@@ -18,7 +18,7 @@
 "use strict";
 
 // Everything below this dB value is considered noise.
-const noiseLevel = -50;
+const noiseLevel = -60;
 
 // How many harmonics should be included in the ranking of dominant
 // frequencies?
@@ -27,8 +27,13 @@ const harmonics = 10;
 const pitchRange = 3;
 const fftSize = 1024*16;
 
+const lineWidthPerDB = 0.002;
+const innerLineLevel = 20;
+
 const textOutput = document.getElementById("textOutput");
 const spiralCanvas = document.getElementById("spiralCanvas");
+
+textOutput.innerHTML = "Hi! 13";
         
 const spiralCtx = spiralCanvas.getContext('2d');
 
@@ -78,6 +83,11 @@ function linePath(ctx, xy0, xy1) {
   ctx.beginPath();
   ctx.moveTo(xy0.x, xy0.y);
   ctx.lineTo(xy1.x, xy1.y);
+}
+
+function fractionalPart(x) {
+  // x % 1 is negative for negative x.
+  return x - Math.floor(x);
 }
 
 
@@ -168,7 +178,12 @@ if (navigator.mediaDevices) {
         let c = Math.cos(alpha);
         let s = Math.sin(alpha);
         let center = offsets.center;
-        spiralCtx.strokeStyle = "grey";
+        if (pitchLabels[i] != "") {
+          spiralCtx.strokeStyle = "white";
+        }
+        else {
+          spiralCtx.strokeStyle = "grey";
+        }
         spiralCtx.beginPath();
         spiralCtx.moveTo(center.x + r0*s, center.y - r0*c);
         spiralCtx.lineTo(center.x + r1*s, center.y - r1*c);
@@ -181,18 +196,26 @@ if (navigator.mediaDevices) {
       let lastxy = pitchPosition(offsets, -pitchRange - dp/2);
       for (let p = -pitchRange; p <= pitchRange; p += dp) {
         const xy = pitchPosition(offsets, p + dp/2);
-        linePath(spiralCtx, lastxy, xy);
         const index = Math.round(pitchToIndex(p));
         const db = Math.max(0, dataArray[index] - noiseLevel);
+        const hueDegrees = fractionalPart(p/3) * 360;
+        linePath(spiralCtx, lastxy, xy);
         if (db > 0) {
-          spiralCtx.lineWidth = 1 + db*0.002*offsets.radius;
-          spiralCtx.strokeStyle = "red";
+          spiralCtx.lineWidth = 1 + db*lineWidthPerDB*offsets.radius;
+          spiralCtx.strokeStyle = "hsl("+hueDegrees+", 30%, 50%)";
         }
         else {
           spiralCtx.lineWidth = 1;
           spiralCtx.strokeStyle = "grey";
         }
         spiralCtx.stroke();
+        if (db > innerLineLevel) {
+          linePath(spiralCtx, lastxy, xy);
+          const iDB = db - innerLineLevel;
+          spiralCtx.lineWidth = 1 + iDB*lineWidthPerDB*offsets.radius;
+          spiralCtx.strokeStyle = "hsl("+hueDegrees+", 100%, 70%)";
+          spiralCtx.stroke();
+        }
         lastxy = xy;
       }
       spiralCtx.lineWidth = 1;
