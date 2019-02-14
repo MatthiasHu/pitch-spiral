@@ -154,10 +154,11 @@ if (navigator.mediaDevices) {
         }
       }
       const dominantFrequency = indexToFrequency(bestIndex);
+      const score = bestScore;
 
       textOutput.innerHTML =
         "dominant frequency: " + dominantFrequency.toFixed(2) + "Hz" +
-        "<br>" + "score: " + bestScore.toFixed(1) +
+        "<br>" + "score: " + score.toFixed(1) +
         "<br>" + "candidates: " + countCandidates;
 
       // draw spiral
@@ -220,9 +221,9 @@ if (navigator.mediaDevices) {
       }
       spiralCtx.lineWidth = 1;
 
-      if (dominantFrequency > 50) {
+      if (score >= 10) {
         const p = frequencyToPitch(dominantFrequency);
-        const r = 0.05*offsets.radius;
+        const r = 0.05*offsets.radius * Math.min(1, score/30);
         const center = pitchPosition(offsets, p);
         const inner = pitchPosition(offsets, p, -r);
         const outer = pitchPosition(offsets, p, r);
