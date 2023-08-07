@@ -105,11 +105,12 @@ if (navigator.mediaDevices) {
     const bufferLength = analyserNode.frequencyBinCount;
     const dataArray = new Float32Array(bufferLength);
 
+    const nyquistFrequency = audioCtx.sampleRate / 2;
     function indexToFrequency(i) {
-      return i / bufferLength * 22050;
+      return i / bufferLength * nyquistFrequency;
     }
     function frequencyToIndex(f) {
-      return f / 22050 * bufferLength;
+      return f / nyquistFrequency * bufferLength;
     }
     function indexToPitch(i) {
       return frequencyToPitch(indexToFrequency(i));
