@@ -33,8 +33,6 @@ const innerLineLevel = 20;
 const textOutput = document.getElementById("textOutput");
 const spiralCanvas = document.getElementById("spiralCanvas");
 
-textOutput.innerHTML = "Hi! 13";
-        
 const spiralCtx = spiralCanvas.getContext('2d');
 
 spiralCtx.fillStyle = 'rgb(0, 0, 0)';
@@ -90,6 +88,8 @@ function fractionalPart(x) {
   return x - Math.floor(x);
 }
 
+
+textOutput.innerHTML = "Requesting audio input...";
 
 if (navigator.mediaDevices) {
   console.log('getUserMedia supported.');
